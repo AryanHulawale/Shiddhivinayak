@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, QrCode, LogOut, FileText, List, CheckCircle, XCircle, User, Zap, Calendar, Users, Briefcase, ChevronLeft, Download, Link, Trash2, Mail, MessageSquare, Globe, Share2 } from 'lucide-react';
+import { Camera, QrCode, LogOut, FileText, List, CheckCircle, XCircle, User, Zap, Calendar, Users, Briefcase, ChevronLeft, Download, Link, Trash2, Share2, Plus, Minus } from 'lucide-react';
 
 // --- Global Constants and Utilities (Simulating Backend Data & Services) ---
 
@@ -8,11 +8,7 @@ const TRUSTEE_EMAIL = 'trustee@app.com';
 const PRO_EMAIL = 'pro@app.com';
 
 // VERCEL FRIENDLY: Base URL construction for deep linking
-// In a real Vercel app, you would define this using environment variables.
-// e.g., const BASE_URL = process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:3000';
-// For this single-file simulation, we rely on window.location.origin
 const getBaseUrl = () => {
-    // In a real deployed app, you'd use a server-defined env variable here.
     return window.location.origin;
 };
 
@@ -49,7 +45,6 @@ const getInitialData = (key, defaultValue) => {
 };
 
 // --- QR Code SVG Generation Function (Self-contained replacement for qrcode.react) ---
-// Note: Updated foreground default to Dark Orange to replace black
 const QRCodeSVG = ({ value, size = 200, foreground = '#c2410c', background = '#ffffff' }) => {
     const qrcode = useMemo(() => {
         const blocks = [];
@@ -111,6 +106,7 @@ const App = () => {
   const [loginError, setLoginError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false); // State for delete confirmation
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [cameraStatus, setCameraStatus] = useState(null); // New state for camera access status
 
   // --- Persistence Effect (Simulating Database Sync) ---
   useEffect(() => {
@@ -316,7 +312,10 @@ const App = () => {
 
   // Component manages its own form state to prevent focus loss issues
   const TrustyForm = ({ onSubmit, onBack }) => { // Page 1: Form Submission
-    const timeSlots = ['09:00 AM', '11:00 AM', '01:00 PM', '03:00 PM', '05:00 PM'];
+    
+    // Initial and managed time slots state
+    const [timeSlots, setTimeSlots] = useState(['09:00 AM', '11:00 AM', '01:00 PM', '03:00 PM', '05:00 PM']);
+    const [newSlot, setNewSlot] = useState('');
     const categories = [
       { key: 'VIP', icon: <Zap className="w-5 h-5" />, label: 'VIP' },
       { key: 'Medical', icon: <Briefcase className="w-5 h-5" />, label: 'Medical' },
@@ -341,6 +340,43 @@ const App = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         onSubmit(form);
+    };
+    
+    // Time slot validation and addition logic
+    const handleAddTimeSlot = () => {
+        // Regex for HH:MM AM/PM format (e.g., 09:00 AM or 12:30 PM)
+        const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9]\s(AM|PM)$/i;
+        
+        if (newSlot.trim() === '') {
+            showMessage('Time slot cannot be empty.', 'error');
+            return;
+        }
+
+        if (!timeRegex.test(newSlot.trim())) {
+            showMessage('Invalid time format. Use HH:MM AM/PM (e.g., 04:30 PM).', 'error');
+            return;
+        }
+
+        if (timeSlots.includes(newSlot.trim())) {
+             showMessage('This time slot already exists.', 'error');
+             return;
+        }
+
+        setTimeSlots(prev => [...prev, newSlot.trim()].sort());
+        setNewSlot('');
+        // Automatically select the new slot if no time slot was selected before
+        if (!form.timeSlot) {
+            setForm(prev => ({ ...prev, timeSlot: newSlot.trim() }));
+        }
+    };
+    
+    const handleRemoveTimeSlot = (slotToRemove) => {
+        const updatedSlots = timeSlots.filter(slot => slot !== slotToRemove);
+        setTimeSlots(updatedSlots);
+        // If the removed slot was currently selected, reset the selected timeSlot
+        if (form.timeSlot === slotToRemove) {
+            setForm(prev => ({ ...prev, timeSlot: updatedSlots[0] || '' }));
+        }
     };
 
     return (
@@ -369,7 +405,7 @@ const App = () => {
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
                 placeholder="Enter your full name"
                 required
               />
@@ -383,7 +419,7 @@ const App = () => {
                 name="phone"
                 value={form.phone}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
                 placeholder="Enter your 10-digit mobile number"
                 required
               />
@@ -397,7 +433,7 @@ const App = () => {
                 name="guests"
                 value={form.guests}
                 onChange={(e) => setForm({ ...form, guests: Math.max(1, parseInt(e.target.value) || 1) })}
-                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
                 placeholder="e.g., 2"
                 min="1"
                 required
@@ -434,7 +470,7 @@ const App = () => {
                 name="date"
                 value={form.date}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
                 required
               />
             </label>
@@ -442,22 +478,49 @@ const App = () => {
             {/* Available Time Slots */}
             <div className="block">
               <span className="text-gray-700 font-semibold block mb-2">Available Time Slots</span>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {timeSlots.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => setForm({ ...form, timeSlot: slot })}
-                    className={`px-4 py-2 rounded-lg transition duration-150 border-2 font-medium ${
-                      form.timeSlot === slot
-                        ? 'bg-orange-500 border-orange-500 text-white shadow-md'
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-orange-50'
-                    }`}
-                  >
-                    {slot}
-                  </button>
+                  <div key={slot} className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, timeSlot: slot })}
+                      className={`px-4 py-2 rounded-lg transition duration-150 border-2 font-medium ${
+                        form.timeSlot === slot
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-md'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-orange-50'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleRemoveTimeSlot(slot)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition duration-150"
+                        aria-label={`Remove time slot ${slot}`}
+                    >
+                        <Minus className="w-3 h-3"/>
+                    </button>
+                  </div>
                 ))}
               </div>
+              
+              <div className="flex space-x-2">
+                <input
+                    type="text"
+                    value={newSlot}
+                    onChange={(e) => setNewSlot(e.target.value)}
+                    placeholder="HH:MM AM/PM (e.g., 04:30 PM)"
+                    className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
+                />
+                <button
+                    type="button"
+                    onClick={handleAddTimeSlot}
+                    className="flex items-center px-4 py-3 bg-orange-600 text-white font-semibold rounded-lg shadow-md hover:bg-orange-700 transition"
+                >
+                    <Plus className="w-5 h-5 mr-1" /> Add
+                </button>
+              </div>
+              <p className='text-sm text-gray-500 mt-2'>Note: Use 12-hour format (e.g., 01:00 PM).</p>
             </div>
             
             <button
@@ -520,9 +583,12 @@ const App = () => {
                       </span>
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-sm text-gray-600">
-                      <p className='flex items-center'><Calendar className='w-4 h-4 mr-1' /> {req.date}</p>
-                      <p className='flex items-center'><Users className='w-4 h-4 mr-1' /> {req.guests} Guests</p>
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row justify-between text-sm text-gray-600">
+                      <p className='flex items-center mb-1 sm:mb-0'><Calendar className='w-4 h-4 mr-1' /> {req.date}</p>
+                      {/* Responsive Guest Count Display */}
+                      <p className='flex items-center font-medium text-orange-950'>
+                        <Users className='w-4 h-4 mr-1' /> {req.guests} Visitor{req.guests !== 1 ? 's' : ''}
+                      </p>
                   </div>
                 </div>
               ))
@@ -558,31 +624,30 @@ const App = () => {
     // Handler placeholders
     const handleDownload = () => showMessage('Download functionality simulated! Ticket details copied.', 'success');
     
-    // UPDATED: Copy the full QR code link (Base URL + ID)
-    const handleCopyLink = () => {
-        // Vercel Friendly: Use getBaseUrl to ensure the link is correct regardless of deployment environment
-        const link = `${getBaseUrl()}?page=ticket&id=${selectedRequest.id}`; 
+    // --- UPDATED: Copy only the Request ID ---
+    const handleCopyId = () => {
+        const idToCopy = selectedRequest.id; 
         
         // Fallback for copy to clipboard
         const input = document.createElement('input');
-        input.value = link;
+        input.value = idToCopy;
         document.body.appendChild(input);
         input.select();
         document.execCommand('copy');
         document.body.removeChild(input);
-        showMessage('QR Code Link copied to clipboard!', 'success');
+        showMessage('Request ID copied to clipboard!', 'success');
     };
 
-    // NEW: Native Share functionality
+    // --- UPDATED: Native Share functionality (Shares only ID) ---
     const handleNativeShare = async () => {
-        const link = `${getBaseUrl()}?page=ticket&id=${selectedRequest.id}`;
+        const idToShare = selectedRequest.id;
 
         if (navigator.share) {
             try {
                 const shareData = {
-                    title: `Digital Pass: ${selectedRequest.name}`,
-                    text: `Here is your digital pass ID for ${selectedRequest.name}. Use this link to access your pass: ${link}`,
-                    url: link, // Share the actual link
+                    title: `Digital Pass ID: ${idToShare}`,
+                    text: `Here is the Digital Pass ID for ${selectedRequest.name}: ${idToShare}`,
+                    // Removed 'url' to prioritize sharing the ID directly.
                 };
                 await navigator.share(shareData);
                 showMessage('Share successful!', 'success');
@@ -591,7 +656,7 @@ const App = () => {
                 showMessage('Share failed or was canceled.', 'error');
             }
         } else {
-            showMessage('Native Share is not supported in this browser.', 'error');
+            showMessage('Native Share is not supported in this browser. Copy ID manually instead.', 'error');
         }
     };
 
@@ -619,7 +684,7 @@ const App = () => {
           <h1 className="text-3xl font-extrabold text-orange-950 text-center mb-2">Digital Pass</h1>
           <p className="text-orange-600 font-semibold text-center mb-6">Present this QR code at the entry point.</p>
 
-          <div className="bg-orange-100 p-8 rounded-xl flex justify-center shadow-inner border border-orange-200">
+          <div className="bg-gradient-to-br from-orange-100 to-orange-200 p-8 rounded-xl flex justify-center shadow-inner border border-orange-300">
             {/* The QR Code SVG component - Foreground color changed in component definition */}
             <div className="p-4 bg-white rounded-lg shadow-xl">
               <QRCodeSVG value={qrData} size={200} />
@@ -633,19 +698,20 @@ const App = () => {
             <div className="grid grid-cols-2 gap-4 mt-8 pt-4 border-t border-gray-200">
                 <div className='text-left'>
                     <p className="text-sm font-medium text-gray-500 uppercase">Category</p>
-                    <p className="text-xl font-semibold text-gray-800">{selectedRequest.category}</p>
+                    <p className="text-xl font-semibold text-orange-950">{selectedRequest.category}</p>
                 </div>
                 <div className='text-right'>
                     <p className="text-sm font-medium text-gray-500 uppercase">Guests</p>
-                    <p className="text-xl font-semibold text-gray-800">{selectedRequest.guests}</p>
+                    {/* Responsive Guest Count Display on Ticket Page */}
+                    <p className="text-xl font-semibold text-orange-950">{selectedRequest.guests} Visitor{selectedRequest.guests !== 1 ? 's' : ''}</p>
                 </div>
                 <div className='text-left'>
                     <p className="text-sm font-medium text-gray-500 uppercase">Date</p>
-                    <p className="text-xl font-semibold text-gray-800">{selectedRequest.date}</p>
+                    <p className="text-xl font-semibold text-orange-950">{selectedRequest.date}</p>
                 </div>
                 <div className='text-right'>
                     <p className="text-sm font-medium text-gray-500 uppercase">Time Slot</p>
-                    <p className="text-xl font-semibold text-gray-800">{selectedRequest.timeSlot}</p>
+                    <p className="text-xl font-semibold text-orange-950">{selectedRequest.timeSlot}</p>
                 </div>
             </div>
           </div>
@@ -667,11 +733,11 @@ const App = () => {
                   Share
               </button>
               <button
-                  onClick={handleCopyLink} // Updated to copy the full link
+                  onClick={handleCopyId} // Now copies only the ID
                   className="w-full flex items-center justify-center py-3 border border-orange-300 text-orange-800 font-semibold rounded-lg hover:bg-orange-50 transition duration-200"
               >
                   <Link className="w-5 h-5 mr-2" />
-                  Copy QR Code Link
+                  Copy Request ID
               </button>
           </div>
 
@@ -692,6 +758,34 @@ const App = () => {
     const [scanValue, setScanValue] = useState('');
     const [scanResult, setScanResult] = useState(null); // The actual request object from scanning
     const [isScanning, setIsScanning] = useState(false);
+
+    // Function to handle camera access attempt
+    const handleCameraClick = async () => {
+        setCameraStatus('Attempting to access camera...');
+        
+        // This attempts to get the camera stream, simulating the camera opening.
+        // In a non-embedded browser environment, this would prompt the user for camera access.
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // If successful, stop the stream immediately since we can't display it
+                stream.getTracks().forEach(track => track.stop());
+                setCameraStatus('Camera access simulated successfully! Ready to scan.');
+            } catch (err) {
+                if (err.name === "NotAllowedError" || err.name === "SecurityError") {
+                    setCameraStatus('Camera access blocked. Please grant camera permission manually.');
+                } else if (err.name === "NotFoundError") {
+                    setCameraStatus('No camera found on this device.');
+                } else {
+                    setCameraStatus(`Error accessing camera: ${err.name}`);
+                }
+                console.error("Camera access error:", err);
+            }
+        } else {
+            setCameraStatus('getUserMedia is not supported by this browser.');
+        }
+    };
+
 
     const handleSimulatedScan = () => {
       // Clear previous error message if present
@@ -729,9 +823,20 @@ const App = () => {
           <h1 className="text-3xl font-extrabold text-orange-950 mb-6 text-center">Visitor Verification (Pro Team)</h1>
           
           {/* Simulated Camera Feed */}
-          <div className="relative h-64 bg-orange-50 rounded-xl flex items-center justify-center border-4 border-dashed border-orange-300 mb-6">
-            <Camera className="w-16 h-16 text-orange-400 opacity-50" />
-            <p className='absolute top-4 text-sm text-gray-500'>Simulated Camera View</p>
+          <div 
+            className="relative h-64 bg-orange-50 rounded-xl flex flex-col items-center justify-center border-4 border-dashed border-orange-300 mb-6 cursor-pointer hover:bg-orange-100 transition duration-200"
+            onClick={handleCameraClick}
+          >
+            <Camera className="w-16 h-16 text-orange-400 opacity-50 mb-2" />
+            <p className='text-sm text-gray-500'>Click here to open camera view</p>
+            {cameraStatus && (
+                <p className={`absolute bottom-2 text-xs px-2 py-1 rounded-full ${
+                    cameraStatus.includes('successfully') ? 'bg-green-100 text-green-700' : 
+                    cameraStatus.includes('blocked') || cameraStatus.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+                }`}>
+                    {cameraStatus}
+                </p>
+            )}
           </div>
 
           {/* Simulated QR Code Input */}
@@ -745,7 +850,7 @@ const App = () => {
               value={scanValue}
               onChange={(e) => setScanValue(e.target.value)}
               placeholder="e.g., REQ-12345-ABCDE"
-              className="w-full px-4 py-3 bg-white text-gray-800 rounded-lg border border-gray-300 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full px-4 py-3 bg-white text-orange-950 rounded-lg border border-gray-300 focus:ring-orange-500 focus:border-orange-500"
             />
             <button
               onClick={() => { setIsScanning(true); handleSimulatedScan(); }}
@@ -765,7 +870,7 @@ const App = () => {
           )}
 
           {scanResult && scanResult !== undefined && (
-            <div className={`mt-6 p-6 rounded-xl shadow-2xl ${isVerified ? 'bg-green-600' : 'bg-yellow-600'}`}>
+            <div className={`mt-6 p-6 rounded-xl shadow-2xl ${isVerified ? 'bg-green-600' : 'bg-orange-600'}`}>
               <div className="flex items-center justify-center mb-4">
                 {isVerified ? (
                     <CheckCircle className="w-10 h-10 text-white" />
@@ -777,7 +882,7 @@ const App = () => {
               <h2 className="text-2xl font-bold text-white text-center mb-4">{scanResult.name}</h2>
               <div className="text-center mb-6">
                 <span className={`px-4 py-1.5 rounded-full text-lg font-bold ${
-                    isVerified ? 'bg-green-800 text-white' : 'bg-yellow-800 text-white'
+                    isVerified ? 'bg-green-800 text-white' : 'bg-orange-800 text-white'
                 }`}>
                     Status: {scanResult.status}
                 </span>
@@ -809,7 +914,7 @@ const App = () => {
               {!isVerified && (
                 <button
                   onClick={() => handleVerify(scanResult.id)}
-                  className="w-full mt-6 py-3 bg-white text-yellow-600 font-bold rounded-lg hover:bg-orange-50 transition"
+                  className="w-full mt-6 py-3 bg-white text-orange-600 font-bold rounded-lg hover:bg-orange-50 transition"
                 >
                   Confirm Verification
                 </button>
