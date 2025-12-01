@@ -163,7 +163,7 @@ const App = () => {
       if (role === 'trustee') setCurrentPage('list');
       if (role === 'pro') setCurrentPage('scan');
     } else {
-      setLoginError(`Invalid credentials. Use ${requiredEmail} and password ${requiredPassword}.`);
+      setLoginError(`Invalid credentials.`);
     }
   };
 
@@ -299,7 +299,7 @@ const App = () => {
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700 block mb-1">Email (Use {role === 'trustee' ? TRUSTEE_EMAIL : PRO_EMAIL})</label>
+              <label htmlFor="email" className="text-sm font-medium text-gray-700 block mb-1">Email </label>
               <input
                 id="email"
                 type="email"
@@ -312,7 +312,7 @@ const App = () => {
             </div>
             
             <div className="relative">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700 block mb-1">Password (Use {displayPassword})</label>
+              <label htmlFor="password" className="text-sm font-medium text-gray-700 block mb-1">Password</label>
               <input
                 id="password"
                 type="password"
