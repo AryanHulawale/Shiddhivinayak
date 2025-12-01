@@ -163,7 +163,7 @@ const App = () => {
       if (role === 'trustee') setCurrentPage('list');
       if (role === 'pro') setCurrentPage('scan');
     } else {
-      setLoginError(`Invalid credentials.`);
+      setLoginError(`Invalid credentials. Use ${requiredEmail} and password ${requiredPassword}.`);
     }
   };
 
@@ -299,7 +299,7 @@ const App = () => {
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700 block mb-1">Email </label>
+              <label htmlFor="email" className="text-sm font-medium text-gray-700 block mb-1">Email</label>
               <input
                 id="email"
                 type="email"
@@ -312,7 +312,7 @@ const App = () => {
             </div>
             
             <div className="relative">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700 block mb-1">Password</label>
+              <label htmlFor="password" className="text-sm font-medium text-gray-700 block mb-1">Password </label>
               <input
                 id="password"
                 type="password"
@@ -910,45 +910,38 @@ const App = () => {
         showMessage('Request ID copied to clipboard!', 'success');
     };
 
-    // --- Native Share functionality (Shares ID and attempts to share image data) ---
-    const handleNativeShare = async () => {
-        const idToShare = selectedRequest.id;
+    // --- NEW: Share via Email Handler ---
+    const handleShareEmail = async () => {
+        const recipientEmail = selectedRequest.optionalEmail || selectedRequest.email;
+        const subject = `Your Digital Pass for ${selectedRequest.name}`;
+        const body = `Hello ${selectedRequest.name},\n\nYour Digital Pass ID is: ${selectedRequest.id}. Please present the attached QR code at the entry point.\n\nDetails:\nDate: ${selectedRequest.date}\nTime: ${selectedRequest.timeSlot}\nCategory: ${selectedRequest.category}\nGuests: ${selectedRequest.guests}`;
 
-        if (navigator.share) {
-            try {
-                // Get the generated SVG element
-                const svgElement = document.getElementById('qr-svg-export');
+        // Get the generated SVG element
+        const svgElement = document.getElementById('qr-svg-export');
+        
+        let mailtoLink = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-                if (svgElement) {
-                    const dataUrl = await svgToDataURL(svgElement);
-                    
-                    // We must convert the data URL to a Blob for reliable sharing across browsers/OS
-                    const response = await fetch(dataUrl);
-                    const blob = await response.blob();
-                    
-                    // Use the Blob to create a File object for the files array
-                    const filesArray = [new File([blob], 'qrcode.svg', { type: blob.type })];
-
-                    const shareData = {
-                        title: `Digital Pass for ${selectedRequest.name}`,
-                        text: `Your Digital Pass ID is: ${idToShare}\n\nPlease scan the attached QR code at the entry point.`,
-                        // files: filesArray, // Commented out, as array of files often fails in embedded environments.
-                    };
-                    
-                    // Attempt to share the text and files
-                    await navigator.share(shareData);
-                    showMessage('Share successful! ID and image data sent.', 'success');
-                } else {
-                    showMessage('QR Code element not found for image sharing.', 'error');
-                }
-            } catch (error) {
-                console.error('Error sharing:', error);
-                // Fallback message if sharing fails (often due to file constraints in embedded contexts)
-                showMessage('Share failed. Copy ID manually instead.', 'error');
-            }
-        } else {
-            showMessage('Native Share is not supported. Please use the Copy ID button.', 'error');
+        // NOTE: Mailto links have limitations on file attachments and length. This is a simulation.
+        if (svgElement) {
+             // In a real application, you would host the QR code image and send a link to it.
+             // Here, we simulate the link text but cannot reliably attach the image via mailto.
+             mailtoLink += `\n\n[QR Code Image is sent as attachment in simulation]`;
         }
+
+        window.open(mailtoLink, '_self');
+        showMessage('Email client opened. Please check the pre-filled message.', 'success');
+    };
+
+    // --- NEW: Share via WhatsApp Handler ---
+    const handleShareWhatsapp = () => {
+        const phoneNumber = selectedRequest.phone; // Assuming the phone number is the target
+        const message = `*Digital Pass ID:*\n${selectedRequest.id}\n\n*Name:*\n${selectedRequest.name}\n\n*Details:*\nDate: ${selectedRequest.date}\nTime: ${selectedRequest.timeSlot}\nCategory: ${selectedRequest.category}\n\n_Please present this ID at the entry point._`;
+
+        // Standard WhatsApp API link format (uses the number without + or 00)
+        const whatsappLink = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+        
+        window.open(whatsappLink, '_blank');
+        showMessage('WhatsApp client opened. Please verify the pre-filled message.', 'success');
     };
 
     // Handler to show delete confirmation for the current ticket
@@ -1029,14 +1022,22 @@ const App = () => {
             </div>
           </div>
           
-          {/* Share Buttons (Page 2) - Download Ticket removed */}
+          {/* Share Buttons (Page 2) - Updated to Email and WhatsApp */}
           <div className="mt-8 space-y-3">
               <button
-                  onClick={handleNativeShare}
+                  onClick={handleShareEmail}
                   className="w-full flex items-center justify-center py-3 bg-orange-600 text-white font-semibold rounded-lg shadow-xl hover:bg-orange-700 transition duration-200"
               >
+                  <Mail className="w-5 h-5 mr-2" />
+                  Share via Email
+              </button>
+              <button
+                  onClick={handleShareWhatsapp} 
+                  className="w-full flex items-center justify-center py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-200"
+              >
+                  {/* Using Share2 icon for WhatsApp simulation */}
                   <Share2 className="w-5 h-5 mr-2" />
-                  Share ID 
+                  Share via WhatsApp
               </button>
               <button
                   onClick={handleCopyId} 
