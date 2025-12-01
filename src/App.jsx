@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, QrCode, LogOut, FileText, List, CheckCircle, XCircle, User, Zap, Calendar, Users, Briefcase, ChevronLeft, Download, Link, Trash2, Share2, Plus, Minus } from 'lucide-react';
+import { Camera, QrCode, LogOut, FileText, List, CheckCircle, XCircle, User, Zap, Calendar, Users, Briefcase, ChevronLeft, Download, Link, Trash2, Share2, Plus, Minus, Mail, Clock } from 'lucide-react';
 
 // --- Global Constants and Utilities (Simulating Backend Data & Services) ---
 
 const MOCK_API_KEY = ""; // Placeholder for Gemini API key, not used for the app logic
-const TRUSTEE_EMAIL = 'trustee@app.com';
-const PRO_EMAIL = 'pro@app.com';
+const TRUSTEE_EMAIL = 'trusteelogin@app.com';
+const TRUSTEE_PASSWORD = 'TRUST45332784';
+const PRO_EMAIL = 'proteamlogin@app.com';
+const PRO_PASSWORD = 'PRO4517084';
 
 // VERCEL FRIENDLY: Base URL construction for deep linking
 const getBaseUrl = () => {
@@ -85,7 +87,7 @@ const QRCodeSVG = ({ value, size = 200, foreground = '#c2410c', background = '#f
         }
 
         return (
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            <svg id="qr-svg-export" width={size} height={size} viewBox={`0 0 ${size} ${size}`} xmlns="http://www.w3.org/2000/svg">
                 <rect width={size} height={size} fill={background} />
                 {blocks}
             </svg>
@@ -94,6 +96,23 @@ const QRCodeSVG = ({ value, size = 200, foreground = '#c2410c', background = '#f
 
     return qrcode;
 };
+
+// --- NEW UTILITY: Converts SVG XML to an Image Data URL (Base64) ---
+// This is required to make the SVG shareable/downloadable like a PNG/JPEG.
+const svgToDataURL = (svgElement) => {
+    return new Promise((resolve) => {
+        const svgString = new XMLSerializer().serializeToString(svgElement);
+        // Clean up the string for use in a data URL
+        const encoded = encodeURIComponent(svgString)
+            .replace(/%20/g, ' ')
+            .replace(/%0A/g, ' ')
+            .replace(/%0D/g, ' ');
+
+        const dataUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
+        resolve(dataUrl);
+    });
+};
+
 
 // --- Main Application Component ---
 
@@ -126,14 +145,25 @@ const App = () => {
   );
 
   // --- Auth Handlers ---
-  const handleLogin = (email, role) => {
-    if ((role === 'trustee' && email === TRUSTEE_EMAIL) || (role === 'pro' && email === PRO_EMAIL)) {
+  const handleLogin = (email, password, role) => {
+    let requiredPassword = '';
+    let requiredEmail = '';
+    
+    if (role === 'trustee') {
+        requiredEmail = TRUSTEE_EMAIL;
+        requiredPassword = TRUSTEE_PASSWORD;
+    } else if (role === 'pro') {
+        requiredEmail = PRO_EMAIL;
+        requiredPassword = PRO_PASSWORD;
+    }
+
+    if (email === requiredEmail && password === requiredPassword) {
       setAuth({ isLoggedIn: true, role, email });
       setLoginError('');
       if (role === 'trustee') setCurrentPage('list');
       if (role === 'pro') setCurrentPage('scan');
     } else {
-      setLoginError('Invalid credentials or role mismatch. Use trustee@app.com or pro@app.com (password: pass).');
+      setLoginError(`Invalid credentials. Use ${requiredEmail} and password ${requiredPassword}.`);
     }
   };
 
@@ -192,12 +222,13 @@ const App = () => {
   };
 
 
+  // *** UPDATED: Change status from 'Verified' to 'Done' ***
   const handleVerification = (requestId) => {
     const updatedRequests = requests.map(req => 
-      req.id === requestId ? { ...req, status: 'Verified' } : req
+      req.id === requestId ? { ...req, status: 'Done' } : req
     );
     setRequests(updatedRequests);
-    showMessage('Request verified successfully!', 'success');
+    showMessage('Request marked as Darshan Done!', 'success');
   };
 
   // --- Modals ---
@@ -241,9 +272,10 @@ const App = () => {
 
     const handleSubmit = (e) => {
       e.preventDefault();
-      // Simple mock login/register logic
-      handleLogin(email, role);
+      handleLogin(email, password, role);
     };
+
+    const displayPassword = role === 'trustee' ? TRUSTEE_PASSWORD : PRO_PASSWORD;
 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-orange-50 p-4">
@@ -280,7 +312,7 @@ const App = () => {
             </div>
             
             <div className="relative">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700 block mb-1">Password (Use 'pass')</label>
+              <label htmlFor="password" className="text-sm font-medium text-gray-700 block mb-1">Password (Use {displayPassword})</label>
               <input
                 id="password"
                 type="password"
@@ -313,71 +345,169 @@ const App = () => {
   // Component manages its own form state to prevent focus loss issues
   const TrustyForm = ({ onSubmit, onBack }) => { // Page 1: Form Submission
     
-    // Initial and managed time slots state
-    const [timeSlots, setTimeSlots] = useState(['09:00 AM', '11:00 AM', '01:00 PM', '03:00 PM', '05:00 PM']);
-    const [newSlot, setNewSlot] = useState('');
+    // Updated Category List
     const categories = [
-      { key: 'VIP', icon: <Zap className="w-5 h-5" />, label: 'VIP' },
-      { key: 'Medical', icon: <Briefcase className="w-5 h-5" />, label: 'Medical' },
-      { key: 'NRI', icon: <User className="w-5 h-5" />, label: 'NRI' },
-      { key: 'Senior', icon: <Users className="w-5 h-5" />, label: 'Senior' },
+      { key: 'VIP (Vastra)', icon: <Zap className="w-5 h-5" />, label: 'VIP (Vastra)' },
+      { key: 'VIP (Reference)', icon: <Briefcase className="w-5 h-5" />, label: 'VIP (Reference)' },
+      { key: 'Medical', icon: <User className="w-5 h-5" />, label: 'Medical' },
+      { key: 'Senior Citizen', icon: <Users className="w-5 h-5" />, label: 'Senior Citizen' },
     ];
 
     const [form, setForm] = useState({ 
         name: '', 
         phone: '', 
+        optionalEmail: '',
         guests: 1, 
-        category: 'VIP', 
+        category: 'VIP (Vastra)', 
         date: new Date().toISOString().substring(0, 10), // Default to today
-        timeSlot: '09:00 AM' 
+        timeHour: '09',
+        timeMinute: '00',
+        timePeriod: 'AM',
+        referenceName: '', 
+        vastraCount: 0, 
+        vastraRecipients: [], // NEW: Names of guests who need Vastra
     });
+
+    // Helper for time slot conversion to string
+    const formatTimeSlot = () => `${form.timeHour}:${form.timeMinute} ${form.timePeriod}`;
+
+    const validateEmail = (email) => {
+        if (!email) return true; // Optional, so empty is fine
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(String(email).toLowerCase());
+    }
 
     const handleChange = useCallback((e) => {
         const { name, value } = e.target;
         setForm(prev => ({ ...prev, [name]: value }));
     }, []);
+    
+    const handlePhoneChange = useCallback((e) => {
+        const value = e.target.value.replace(/[^0-9]/g, ''); // Only allow numbers
+        if (value.length <= 10) {
+            setForm(prev => ({ ...prev, phone: value }));
+        }
+    }, []);
+
+    const handleGuestChange = useCallback((amount) => {
+        setForm(prev => {
+            const newGuests = Math.max(1, prev.guests + amount);
+            const newVastraCount = Math.min(prev.vastraCount, newGuests);
+            
+            // Synchronize recipients array length to the new Vastra count
+            let newRecipients = Array.from({ length: newVastraCount }, (_, i) => 
+                prev.vastraRecipients[i] || ''
+            );
+
+            return { ...prev, guests: newGuests, vastraCount: newVastraCount, vastraRecipients: newRecipients };
+        });
+    }, []);
+
+    const handleVastraChange = useCallback((amount) => {
+        setForm(prev => {
+            const newVastraCount = Math.max(0, prev.vastraCount + amount);
+            const finalCount = Math.min(newVastraCount, prev.guests);
+            
+            // Synchronize recipients array length
+            let newRecipients = Array.from({ length: finalCount }, (_, i) => 
+                prev.vastraRecipients[i] || ''
+            );
+
+            return { ...prev, vastraCount: finalCount, vastraRecipients: newRecipients };
+        });
+    }, []);
+    
+    const handleRecipientNameChange = useCallback((index, name) => {
+        setForm(prev => {
+            const newRecipients = [...prev.vastraRecipients];
+            newRecipients[index] = name;
+            return { ...prev, vastraRecipients: newRecipients };
+        });
+    }, []);
+    
+    const handleTimeChange = useCallback((name, value) => {
+        let numericValue = parseInt(value, 10);
+        
+        if (name === 'timeHour') {
+            if (numericValue < 1 || numericValue > 12 || isNaN(numericValue)) numericValue = 1;
+            setForm(prev => ({ ...prev, timeHour: String(numericValue).padStart(2, '0') }));
+        } else if (name === 'timeMinute') {
+            if (numericValue < 0 || numericValue > 59 || isNaN(numericValue)) numericValue = 0;
+            setForm(prev => ({ ...prev, timeMinute: String(numericValue).padStart(2, '0') }));
+        }
+    }, []);
+
+    const handleCategoryChange = useCallback((newCategory) => {
+        setForm(prev => {
+            let updates = { category: newCategory };
+            // Reset conditional fields when category changes
+            if (newCategory !== 'VIP (Reference)') updates.referenceName = '';
+            if (newCategory !== 'VIP (Vastra)') {
+                updates.vastraCount = 0;
+                updates.vastraRecipients = [];
+            }
+            return { ...prev, ...updates };
+        });
+    }, []);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit(form);
-    };
-    
-    // Time slot validation and addition logic
-    const handleAddTimeSlot = () => {
-        // Regex for HH:MM AM/PM format (e.g., 09:00 AM or 12:30 PM)
-        const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9]\s(AM|PM)$/i;
         
-        if (newSlot.trim() === '') {
-            showMessage('Time slot cannot be empty.', 'error');
+        if (form.phone.length !== 10) {
+            showMessage('Phone number must be exactly 10 digits.', 'error');
             return;
         }
 
-        if (!timeRegex.test(newSlot.trim())) {
-            showMessage('Invalid time format. Use HH:MM AM/PM (e.g., 04:30 PM).', 'error');
+        if (!validateEmail(form.optionalEmail)) {
+            showMessage('Please enter a valid optional email address.', 'error');
             return;
         }
 
-        if (timeSlots.includes(newSlot.trim())) {
-             showMessage('This time slot already exists.', 'error');
-             return;
+        if (form.category === 'VIP (Reference)' && !form.referenceName) {
+            showMessage('Please provide a Trustee Reference Name.', 'error');
+            return;
         }
 
-        setTimeSlots(prev => [...prev, newSlot.trim()].sort());
-        setNewSlot('');
-        // Automatically select the new slot if no time slot was selected before
-        if (!form.timeSlot) {
-            setForm(prev => ({ ...prev, timeSlot: newSlot.trim() }));
+        if (form.category === 'VIP (Vastra)' && form.vastraCount > 0) {
+             if (form.vastraRecipients.some(name => !name.trim())) {
+                showMessage('Please enter the full name for every Vastra recipient.', 'error');
+                return;
+            }
         }
+        
+        const timeSlot = formatTimeSlot();
+
+        // --- TIME CONSTRAINT VALIDATION ---
+        // Convert 12-hour time to 24-hour time for comparison
+        let hour24 = parseInt(form.timeHour, 10);
+        if (form.timePeriod === 'PM' && hour24 !== 12) {
+            hour24 += 12;
+        } else if (form.timePeriod === 'AM' && hour24 === 12) {
+            hour24 = 0;
+        }
+        const minute = parseInt(form.timeMinute, 10);
+        
+        // Convert to minutes from midnight for easy comparison
+        const totalMinutes = hour24 * 60 + minute;
+
+        // Constraints: 3:30 AM (3*60 + 30 = 210) to 9:00 PM (21*60 + 0 = 1260)
+        const START_TIME_MINUTES = 210; // 3:30 AM
+        const END_TIME_MINUTES = 1260;  // 9:00 PM
+
+        if (totalMinutes < START_TIME_MINUTES || totalMinutes > END_TIME_MINUTES) {
+            showMessage('Preferred time must be between 3:30 AM and 9:00 PM.', 'error');
+            return;
+        }
+        // --- END TIME CONSTRAINT VALIDATION ---
+
+        onSubmit({ ...form, timeSlot });
     };
     
-    const handleRemoveTimeSlot = (slotToRemove) => {
-        const updatedSlots = timeSlots.filter(slot => slot !== slotToRemove);
-        setTimeSlots(updatedSlots);
-        // If the removed slot was currently selected, reset the selected timeSlot
-        if (form.timeSlot === slotToRemove) {
-            setForm(prev => ({ ...prev, timeSlot: updatedSlots[0] || '' }));
-        }
-    };
+    // Generate an array for hour options (01 to 12)
+    const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+    // Generate an array for minute options (00 to 55 in steps of 5)
+    const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
 
     return (
       <div className="min-h-screen bg-orange-50 p-4 sm:p-8">
@@ -411,34 +541,70 @@ const App = () => {
               />
             </label>
 
-            {/* Phone Number */}
+            {/* Phone Number (10 Digits, Numbers Only) */}
             <label className="block">
-              <span className="text-gray-700 font-semibold">Phone Number</span>
+              <span className="text-gray-700 font-semibold">Phone Number (10 Digits)</span>
               <input
                 type="tel"
                 name="phone"
                 value={form.phone}
-                onChange={handleChange}
+                onChange={handlePhoneChange}
                 className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
                 placeholder="Enter your 10-digit mobile number"
+                maxLength="10"
                 required
+              />
+              <p className='text-xs text-gray-500 mt-1'>Must be exactly 10 digits and contain only numbers.</p>
+            </label>
+            
+            {/* Optional Email */}
+            <label className="block">
+              <span className="text-gray-700 font-semibold flex items-center">
+                  <Mail className='w-4 h-4 mr-1 text-gray-400'/> Optional Email
+              </span>
+              <input
+                type="email"
+                name="optionalEmail"
+                value={form.optionalEmail}
+                onChange={handleChange}
+                onBlur={() => { if (!validateEmail(form.optionalEmail)) showMessage('Please enter a valid email format.', 'error'); }}
+                className={`mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950 ${
+                    form.optionalEmail && !validateEmail(form.optionalEmail) ? 'border-red-500' : ''
+                }`}
+                placeholder="Enter an optional email address"
               />
             </label>
 
-            {/* Number of Guests */}
-            <label className="block">
-              <span className="text-gray-700 font-semibold">Number of Guests</span>
-              <input
-                type="number"
-                name="guests"
-                value={form.guests}
-                onChange={(e) => setForm({ ...form, guests: Math.max(1, parseInt(e.target.value) || 1) })}
-                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
-                placeholder="e.g., 2"
-                min="1"
-                required
-              />
-            </label>
+            {/* Number of Guests (With +/- Buttons) */}
+            <div className="block">
+                <span className="text-gray-700 font-semibold block mb-2">Number of Guests</span>
+                <div className="flex items-center w-full max-w-xs">
+                    <button
+                        type="button"
+                        onClick={() => handleGuestChange(-1)}
+                        disabled={form.guests <= 1}
+                        className="p-3 bg-orange-100 text-orange-600 rounded-l-lg border border-orange-200 hover:bg-orange-200 disabled:bg-gray-100 disabled:text-gray-400 transition"
+                    >
+                        <Minus className="w-5 h-5" />
+                    </button>
+                    <input
+                        type="number"
+                        name="guests"
+                        value={form.guests}
+                        onChange={(e) => setForm({ ...form, guests: Math.max(1, parseInt(e.target.value) || 1) })}
+                        className="flex-1 text-center border-y border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        min="1"
+                        required
+                    />
+                    <button
+                        type="button"
+                        onClick={() => handleGuestChange(1)}
+                        className="p-3 bg-orange-100 text-orange-600 rounded-r-lg border border-orange-200 hover:bg-orange-200 transition"
+                    >
+                        <Plus className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
 
             {/* Request Category */}
             <div className="block">
@@ -448,80 +614,161 @@ const App = () => {
                   <button
                     key={cat.key}
                     type="button"
-                    onClick={() => setForm({ ...form, category: cat.key })}
-                    className={`flex items-center justify-center p-4 rounded-xl transition duration-150 border-2 ${
+                    onClick={() => handleCategoryChange(cat.key)} // Use new handler
+                    className={`flex items-center justify-center p-4 rounded-xl transition duration-150 border-2 text-center ${
                       form.category === cat.key
                         ? 'bg-orange-100 border-orange-500 text-orange-700 shadow-md'
                         : 'bg-white border-gray-200 text-gray-600 hover:bg-orange-50 hover:border-orange-200'
                     }`}
                   >
-                    {cat.icon}
-                    <span className="ml-2 font-medium">{cat.label}</span>
+                    {cat.icon && React.cloneElement(cat.icon, { className: 'w-5 h-5 mr-2' })}
+                    <span className="ml-0 font-medium">{cat.label}</span>
                   </button>
                 ))}
               </div>
             </div>
+            
+            {/* CONDITIONAL INPUT: VIP (Reference) Name */}
+            {form.category === 'VIP (Reference)' && (
+                <label className="block bg-orange-50 p-4 rounded-lg border border-orange-200">
+                    <span className="text-gray-700 font-semibold">Trustee Reference Name (Required)</span>
+                    <input
+                        type="text"
+                        name="referenceName"
+                        value={form.referenceName}
+                        onChange={handleChange}
+                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
+                        placeholder="Enter the name of the referring trustee"
+                        required
+                    />
+                </label>
+            )}
 
-            {/* Preferred Date */}
-            <label className="block">
-              <span className="text-gray-700 font-semibold">Preferred Date</span>
-              <input
-                type="date"
-                name="date"
-                value={form.date}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
-                required
-              />
-            </label>
+            {/* CONDITIONAL INPUT: VIP (Vastra) Count & Recipient Names */}
+            {form.category === 'VIP (Vastra)' && (
+                <div className="block bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-4">
+                    <span className="text-gray-700 font-semibold block">Number of Guests Who Need Vastra (Max: {form.guests})</span>
+                    
+                    {/* Vastra Count +/- Buttons */}
+                    <div className="flex items-center w-full max-w-xs">
+                        <button
+                            type="button"
+                            onClick={() => handleVastraChange(-1)}
+                            disabled={form.vastraCount <= 0}
+                            className="p-3 bg-orange-100 text-orange-600 rounded-l-lg border border-orange-200 hover:bg-orange-200 disabled:bg-gray-100 disabled:text-gray-400 transition"
+                        >
+                            <Minus className="w-5 h-5" />
+                        </button>
+                        <input
+                            type="number"
+                            name="vastraCountDisplay" // Use a dummy name here as state is controlled
+                            value={form.vastraCount}
+                            readOnly
+                            className="flex-1 text-center border-y border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950 bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => handleVastraChange(1)}
+                            disabled={form.vastraCount >= form.guests}
+                            className="p-3 bg-orange-100 text-orange-600 rounded-r-lg border border-orange-200 hover:bg-orange-200 disabled:bg-gray-100 disabled:text-gray-400 transition"
+                        >
+                            <Plus className="w-5 h-5" />
+                        </button>
+                    </div>
+                    
+                    {/* Conditional Recipient Name Inputs */}
+                    {form.vastraCount > 0 && (
+                        <div className="pt-4 border-t border-orange-200 space-y-3">
+                            <span className="text-gray-700 font-semibold block">Names of Vastra Recipients ({form.vastraCount} Required)</span>
+                            {Array.from({ length: form.vastraCount }).map((_, index) => (
+                                <input
+                                    key={index}
+                                    type="text"
+                                    value={form.vastraRecipients[index] || ''}
+                                    onChange={(e) => handleRecipientNameChange(index, e.target.value)}
+                                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
+                                    placeholder={`Recipient ${index + 1} Full Name (Required)`}
+                                    required
+                                />
+                            ))}
+                            <p className='text-xs text-orange-700 mt-2'>* Names are required for Vastra identification.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
-            {/* Available Time Slots */}
-            <div className="block">
-              <span className="text-gray-700 font-semibold block mb-2">Available Time Slots</span>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {timeSlots.map((slot) => (
-                  <div key={slot} className="relative group">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, timeSlot: slot })}
-                      className={`px-4 py-2 rounded-lg transition duration-150 border-2 font-medium ${
-                        form.timeSlot === slot
-                          ? 'bg-orange-500 border-orange-500 text-white shadow-md'
-                          : 'bg-white border-gray-300 text-gray-700 hover:bg-orange-50'
-                      }`}
-                    >
-                      {slot}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleRemoveTimeSlot(slot)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition duration-150"
-                        aria-label={`Remove time slot ${slot}`}
-                    >
-                        <Minus className="w-3 h-3"/>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex space-x-2">
+            {/* Preferred Date & Time (Side-by-Side Container) */}
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+              {/* Preferred Date */}
+              <label className="block">
+                <span className="text-gray-700 font-semibold flex items-center mb-1">
+                    <Calendar className='w-4 h-4 mr-1 text-gray-400'/> Preferred Date
+                </span>
                 <input
-                    type="text"
-                    value={newSlot}
-                    onChange={(e) => setNewSlot(e.target.value)}
-                    placeholder="HH:MM AM/PM (e.g., 04:30 PM)"
-                    className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
+                  type="date"
+                  name="date"
+                  value={form.date}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
+                  required
                 />
-                <button
-                    type="button"
-                    onClick={handleAddTimeSlot}
-                    className="flex items-center px-4 py-3 bg-orange-600 text-white font-semibold rounded-lg shadow-md hover:bg-orange-700 transition"
-                >
-                    <Plus className="w-5 h-5 mr-1" /> Add
-                </button>
+              </label>
+
+              {/* 12-Hour Time Input */}
+              <div className="block">
+                  <span className="text-gray-700 font-semibold flex items-center mb-1">
+                      <Clock className='w-4 h-4 mr-1 text-gray-400'/> Preferred Time
+                      <span className='ml-2 text-xs text-gray-500'>(3:30 AM to 9:00 PM)</span>
+                  </span>
+                  <div className="flex space-x-2 items-center">
+                      {/* Hour Input */}
+                      <select
+                          name="timeHour"
+                          value={form.timeHour}
+                          onChange={(e) => handleTimeChange('timeHour', e.target.value)}
+                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
+                      >
+                          {hours.map(h => (
+                              <option key={h} value={h}>{h}</option>
+                          ))}
+                      </select>
+                      <span className="text-xl font-bold text-gray-700">:</span>
+                      {/* Minute Input */}
+                      <select
+                          name="timeMinute"
+                          value={form.timeMinute}
+                          onChange={(e) => handleTimeChange('timeMinute', e.target.value)}
+                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3 text-orange-950"
+                      >
+                          {minutes.map(m => (
+                              <option key={m} value={m}>{m}</option>
+                          ))}
+                      </select>
+                      
+                      {/* AM/PM Toggle */}
+                      <div className="flex border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                          <button
+                              type="button"
+                              onClick={() => setForm(prev => ({ ...prev, timePeriod: 'AM' }))}
+                              className={`px-3 py-3 font-semibold text-sm transition ${
+                                  form.timePeriod === 'AM' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-orange-50'
+                              }`}
+                          >
+                              AM
+                          </button>
+                          <button
+                              type="button"
+                              onClick={() => setForm(prev => ({ ...prev, timePeriod: 'PM' }))}
+                              className={`px-3 py-3 font-semibold text-sm transition ${
+                                  form.timePeriod === 'PM' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-orange-50'
+                              }`}
+                          >
+                              PM
+                          </button>
+                      </div>
+                  </div>
               </div>
-              <p className='text-sm text-gray-500 mt-2'>Note: Use 12-hour format (e.g., 01:00 PM).</p>
-            </div>
+            </div> {/* End Preferred Date & Time Container */}
             
             <button
               type="submit"
@@ -537,6 +784,14 @@ const App = () => {
 
   const TrustyDashboard = () => { // Page 3: List of Trustee's Requests
     if (!auth.isLoggedIn || auth.role !== 'trustee') return <AuthPage />;
+
+    // Helper function for status display
+    const getStatusDisplay = (status) => {
+        if (status === 'Done') {
+            return { text: 'Darshan is Done', className: 'bg-green-100 text-green-700' };
+        }
+        return { text: 'Pending', className: 'bg-yellow-100 text-yellow-700' };
+    };
 
     return (
       <div className="min-h-screen bg-orange-50 p-4 sm:p-8">
@@ -563,35 +818,47 @@ const App = () => {
                 </button>
               </div>
             ) : (
-              trusteeRequests.map(req => (
-                <div
-                  key={req.id}
-                  onClick={() => goToTicket(req.id)}
-                  className="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition cursor-pointer border-l-4 border-orange-500 relative"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-semibold text-orange-950">{req.name}</h3>
-                      <p className="text-sm text-gray-500">{req.category} Request</p>
+              trusteeRequests.map(req => {
+                const status = getStatusDisplay(req.status);
+                return (
+                  <div
+                    key={req.id}
+                    onClick={() => goToTicket(req.id)}
+                    className="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition cursor-pointer border-l-4 border-orange-500 relative"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-xl font-semibold text-orange-950">{req.name}</h3>
+                        <p className="text-sm text-gray-500">{req.category} Request
+                        {req.vastraCount > 0 && <span className="ml-2 text-xs font-bold text-orange-700">({req.vastraCount} Vastra)</span>}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-orange-900">{req.timeSlot}</p>
+                        <span className={`text-sm font-medium px-3 py-1 rounded-full ${status.className}`}>
+                            {status.text}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-orange-900">{req.timeSlot}</p>
-                      <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                          req.status === 'Verified' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                          {req.status}
-                      </span>
+                    {req.referenceName && (
+                        <p className="text-sm text-gray-700 mt-1 flex items-center">
+                            <Briefcase className='w-4 h-4 mr-1 text-gray-400'/> Ref: <span className="font-medium ml-1 text-orange-950">{req.referenceName}</span>
+                        </p>
+                    )}
+                    {req.vastraRecipients && req.vastraRecipients.length > 0 && (
+                        <p className="text-sm text-gray-700 mt-1 flex items-start">
+                            <Zap className='w-4 h-4 mr-1 text-gray-400 mt-1'/> Recipients: <span className="font-medium ml-1 text-orange-950 truncate">{req.vastraRecipients.join(', ')}</span>
+                        </p>
+                    )}
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row justify-between text-sm text-gray-600">
+                        <p className='flex items-center mb-1 sm:mb-0'><Calendar className='w-4 h-4 mr-1' /> {req.date}</p>
+                        {/* Responsive Guest Count Display */}
+                        <p className='flex items-center font-medium text-orange-950'>
+                          <Users className='w-4 h-4 mr-1' /> {req.guests} Visitor{req.guests !== 1 ? 's' : ''}
+                        </p>
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col sm:flex-row justify-between text-sm text-gray-600">
-                      <p className='flex items-center mb-1 sm:mb-0'><Calendar className='w-4 h-4 mr-1' /> {req.date}</p>
-                      {/* Responsive Guest Count Display */}
-                      <p className='flex items-center font-medium text-orange-950'>
-                        <Users className='w-4 h-4 mr-1' /> {req.guests} Visitor{req.guests !== 1 ? 's' : ''}
-                      </p>
-                  </div>
-                </div>
-              ))
+              )})
             )}
           </div>
         </div>
@@ -612,19 +879,24 @@ const App = () => {
     // Data encoded in the QR code is just the ID
     const qrData = selectedRequest.id;
 
-    const StatusBadge = ({ status }) => (
-        <div className={`inline-flex items-center px-4 py-1.5 rounded-full font-bold text-lg ${
-            status === 'Verified' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-        }`}>
-            {status === 'Verified' ? <CheckCircle className="w-5 h-5 mr-2" /> : <Zap className="w-5 h-5 mr-2" />}
-            {status}
+    // Helper function for status display on ticket page
+    const getStatusDisplay = (status) => {
+        if (status === 'Done') {
+            return { text: 'Darshan is Done', className: 'bg-green-100 text-green-700', icon: <CheckCircle className="w-5 h-5 mr-2" /> };
+        }
+        return { text: 'Pending', className: 'bg-yellow-100 text-yellow-700', icon: <Zap className="w-5 h-5 mr-2" /> };
+    };
+
+    const statusDisplay = getStatusDisplay(selectedRequest.status);
+
+    const StatusBadge = () => (
+        <div className={`inline-flex items-center px-4 py-1.5 rounded-full font-bold text-lg ${statusDisplay.className}`}>
+            {statusDisplay.icon}
+            {statusDisplay.text}
         </div>
     );
     
-    // Handler placeholders
-    const handleDownload = () => showMessage('Download functionality simulated! Ticket details copied.', 'success');
-    
-    // --- UPDATED: Copy only the Request ID ---
+    // --- Copy only the Request ID ---
     const handleCopyId = () => {
         const idToCopy = selectedRequest.id; 
         
@@ -638,25 +910,44 @@ const App = () => {
         showMessage('Request ID copied to clipboard!', 'success');
     };
 
-    // --- UPDATED: Native Share functionality (Shares only ID) ---
+    // --- Native Share functionality (Shares ID and attempts to share image data) ---
     const handleNativeShare = async () => {
         const idToShare = selectedRequest.id;
 
         if (navigator.share) {
             try {
-                const shareData = {
-                    title: `Digital Pass ID: ${idToShare}`,
-                    text: `Here is the Digital Pass ID for ${selectedRequest.name}: ${idToShare}`,
-                    // Removed 'url' to prioritize sharing the ID directly.
-                };
-                await navigator.share(shareData);
-                showMessage('Share successful!', 'success');
+                // Get the generated SVG element
+                const svgElement = document.getElementById('qr-svg-export');
+
+                if (svgElement) {
+                    const dataUrl = await svgToDataURL(svgElement);
+                    
+                    // We must convert the data URL to a Blob for reliable sharing across browsers/OS
+                    const response = await fetch(dataUrl);
+                    const blob = await response.blob();
+                    
+                    // Use the Blob to create a File object for the files array
+                    const filesArray = [new File([blob], 'qrcode.svg', { type: blob.type })];
+
+                    const shareData = {
+                        title: `Digital Pass for ${selectedRequest.name}`,
+                        text: `Your Digital Pass ID is: ${idToShare}\n\nPlease scan the attached QR code at the entry point.`,
+                        // files: filesArray, // Commented out, as array of files often fails in embedded environments.
+                    };
+                    
+                    // Attempt to share the text and files
+                    await navigator.share(shareData);
+                    showMessage('Share successful! ID and image data sent.', 'success');
+                } else {
+                    showMessage('QR Code element not found for image sharing.', 'error');
+                }
             } catch (error) {
                 console.error('Error sharing:', error);
-                showMessage('Share failed or was canceled.', 'error');
+                // Fallback message if sharing fails (often due to file constraints in embedded contexts)
+                showMessage('Share failed. Copy ID manually instead.', 'error');
             }
         } else {
-            showMessage('Native Share is not supported in this browser. Copy ID manually instead.', 'error');
+            showMessage('Native Share is not supported. Please use the Copy ID button.', 'error');
         }
     };
 
@@ -693,7 +984,7 @@ const App = () => {
           
           <div className="mt-8 text-center">
             <h2 className="text-3xl font-bold text-orange-950 mb-4">{selectedRequest.name}</h2>
-            <StatusBadge status={selectedRequest.status} />
+            <StatusBadge />
 
             <div className="grid grid-cols-2 gap-4 mt-8 pt-4 border-t border-gray-200">
                 <div className='text-left'>
@@ -705,6 +996,28 @@ const App = () => {
                     {/* Responsive Guest Count Display on Ticket Page */}
                     <p className="text-xl font-semibold text-orange-950">{selectedRequest.guests} Visitor{selectedRequest.guests !== 1 ? 's' : ''}</p>
                 </div>
+                {selectedRequest.referenceName && (
+                    <div className='col-span-2 text-left'>
+                        <p className="text-sm font-medium text-gray-500 uppercase">Trustee Reference Name</p>
+                        <p className="text-xl font-semibold text-orange-950">{selectedRequest.referenceName}</p>
+                    </div>
+                )}
+                {selectedRequest.vastraCount > 0 && (
+                    <>
+                        <div className='col-span-2 text-left mt-4 border-t border-gray-200 pt-4'>
+                            <p className="text-sm font-medium text-gray-500 uppercase">Vastra Count</p>
+                            <p className="text-xl font-semibold text-orange-950">{selectedRequest.vastraCount}</p>
+                        </div>
+                        <div className='col-span-2 text-left'>
+                            <p className="text-sm font-medium text-gray-500 uppercase">Vastra Recipients</p>
+                            <ul className="text-base font-semibold text-orange-950 list-disc list-inside space-y-1 mt-1">
+                                {selectedRequest.vastraRecipients.map((name, index) => (
+                                    <li key={index}>{name}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    </>
+                )}
                 <div className='text-left'>
                     <p className="text-sm font-medium text-gray-500 uppercase">Date</p>
                     <p className="text-xl font-semibold text-orange-950">{selectedRequest.date}</p>
@@ -716,35 +1029,28 @@ const App = () => {
             </div>
           </div>
           
-          {/* Download and Share Buttons (Page 2) */}
+          {/* Share Buttons (Page 2) - Download Ticket removed */}
           <div className="mt-8 space-y-3">
               <button
-                  onClick={handleDownload}
+                  onClick={handleNativeShare}
                   className="w-full flex items-center justify-center py-3 bg-orange-600 text-white font-semibold rounded-lg shadow-xl hover:bg-orange-700 transition duration-200"
               >
-                  <Download className="w-5 h-5 mr-2" />
-                  Download Ticket
-              </button>
-              <button
-                  onClick={handleNativeShare}
-                  className="w-full flex items-center justify-center py-3 bg-orange-100 text-orange-900 font-semibold rounded-lg hover:bg-orange-200 transition duration-200 border border-orange-200"
-              >
                   <Share2 className="w-5 h-5 mr-2" />
-                  Share
+                  Share ID 
               </button>
               <button
-                  onClick={handleCopyId} // Now copies only the ID
+                  onClick={handleCopyId} 
                   className="w-full flex items-center justify-center py-3 border border-orange-300 text-orange-800 font-semibold rounded-lg hover:bg-orange-50 transition duration-200"
               >
                   <Link className="w-5 h-5 mr-2" />
-                  Copy Request ID
+                  Copy ID
               </button>
           </div>
 
-          {/* New Delete Button at the bottom */}
+          {/* New Delete Button at the bottom (Enhanced UI) */}
           <button
               onClick={handleDelete}
-              className="w-full mt-6 flex items-center justify-center py-3 text-red-600 font-semibold rounded-lg border-2 border-red-600 hover:bg-red-50 transition duration-200"
+              className="w-full mt-6 py-3 flex items-center justify-center bg-red-50 text-red-600 font-semibold rounded-lg border-2 border-red-300 hover:bg-red-100 transition duration-200 shadow-md hover:shadow-lg"
           >
               <Trash2 className="w-5 h-5 mr-2" />
               Delete Request
@@ -806,10 +1112,11 @@ const App = () => {
         handleVerification(requestId);
         // Refresh the verification result after updating status
         const updatedRequest = requests.find(r => r.id === requestId);
-        setScanResult({ ...updatedRequest, status: 'Verified' }); // Manually update the local scan result
+        // *** IMPORTANT: Since the status is now 'Done', we ensure the local result reflects this for display
+        setScanResult({ ...updatedRequest, status: 'Done' }); 
     };
 
-    const isVerified = scanResult?.status === 'Verified';
+    const isDone = scanResult?.status === 'Done';
 
     return (
       <div className="min-h-screen bg-orange-50 p-4 sm:p-8">
@@ -870,9 +1177,9 @@ const App = () => {
           )}
 
           {scanResult && scanResult !== undefined && (
-            <div className={`mt-6 p-6 rounded-xl shadow-2xl ${isVerified ? 'bg-green-600' : 'bg-orange-600'}`}>
+            <div className={`mt-6 p-6 rounded-xl shadow-2xl ${isDone ? 'bg-green-600' : 'bg-orange-600'}`}>
               <div className="flex items-center justify-center mb-4">
-                {isVerified ? (
+                {isDone ? (
                     <CheckCircle className="w-10 h-10 text-white" />
                 ) : (
                     <Zap className="w-10 h-10 text-white" />
@@ -882,9 +1189,9 @@ const App = () => {
               <h2 className="text-2xl font-bold text-white text-center mb-4">{scanResult.name}</h2>
               <div className="text-center mb-6">
                 <span className={`px-4 py-1.5 rounded-full text-lg font-bold ${
-                    isVerified ? 'bg-green-800 text-white' : 'bg-orange-800 text-white'
+                    isDone ? 'bg-green-800 text-white' : 'bg-orange-800 text-white'
                 }`}>
-                    Status: {scanResult.status}
+                    Status: {scanResult.status === 'Done' ? 'Darshan Done' : 'Pending'}
                 </span>
               </div>
               
@@ -901,6 +1208,24 @@ const App = () => {
                     <p className="font-medium text-white uppercase opacity-80">Guests</p>
                     <p className="text-base font-semibold text-white">{scanResult.guests}</p>
                 </div>
+                {scanResult.referenceName && (
+                    <div className='col-span-2'>
+                        <p className="font-medium text-white uppercase opacity-80">Ref. Trustee Name</p>
+                        <p className="text-base font-semibold text-white">{scanResult.referenceName}</p>
+                    </div>
+                )}
+                {scanResult.vastraCount > 0 && (
+                    <div className='col-span-2'>
+                        <p className="font-medium text-white uppercase opacity-80">Vastra Count</p>
+                        <p className="text-base font-semibold text-white mb-2">{scanResult.vastraCount}</p>
+                        <p className="font-medium text-white uppercase opacity-80">Vastra Recipients</p>
+                        <ul className="text-base font-semibold text-white list-disc list-inside space-y-1 mt-1">
+                            {scanResult.vastraRecipients.map((name, index) => (
+                                <li key={index}>{name}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
                 <div>
                     <p className="font-medium text-white uppercase opacity-80">Date/Time</p>
                     <p className="text-base font-semibold text-white">{scanResult.date} at {scanResult.timeSlot}</p>
@@ -911,12 +1236,12 @@ const App = () => {
                 </div>
               </div>
               
-              {!isVerified && (
+              {!isDone && (
                 <button
                   onClick={() => handleVerify(scanResult.id)}
                   className="w-full mt-6 py-3 bg-white text-orange-600 font-bold rounded-lg hover:bg-orange-50 transition"
                 >
-                  Confirm Verification
+                  Confirm Darshan Done
                 </button>
               )}
             </div>
