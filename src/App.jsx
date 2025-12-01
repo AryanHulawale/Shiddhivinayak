@@ -600,7 +600,7 @@ const App = () => {
         {/* Increased card padding p-3 -> p-4 */}
         <div className="max-w-md mx-auto bg-white p-4 sm:p-5 rounded-xl shadow-2xl border-t-4 border-orange-500">
           <h2 className="text-lg sm:text-xl font-extrabold text-orange-950 border-b pb-1 mb-3">Special Request Form</h2>
-          
+          <p className="text-gray-500 text-xs mb-3">Please fill all mandatory fields (<span className='text-red-500'>*</span>).</p>
 
           <form onSubmit={handleSubmit} className="space-y-3">
             
@@ -619,9 +619,10 @@ const App = () => {
             </label>
 
             {/* Phone Number & Email (Side-by-Side) */}
+            {/* ADJUSTMENT: Custom grid columns for phone (smaller) and email (larger) */}
             <div className='grid grid-cols-2 gap-3'>
-                {/* Phone Number */}
-                <label className="block">
+                {/* Phone Number - set to w-1/2 on medium+ screens */}
+                <label className="block md:col-span-1">
                     <span className="text-gray-700 font-semibold flex items-center text-sm">Phone Number <span className='text-red-500 ml-1'>*</span></span>
                     <input
                         type="tel"
@@ -635,8 +636,8 @@ const App = () => {
                     />
                 </label>
                 
-                {/* Optional Email */}
-                <label className="block">
+                {/* Optional Email - set to w-1/2 on medium+ screens */}
+                <label className="block md:col-span-1">
                     <span className="text-gray-700 font-semibold flex items-center text-sm">
                          Email
                     </span>
@@ -684,7 +685,7 @@ const App = () => {
                 </div>
             </div>
 
-            {/* Request Category: MODIFIED to enforce 2-column layout (2x2) */}
+            {/* Request Category: MODIFIED to enforce 2-column layout (2x2) and increase mobile size */}
             <div className="block">
               <span className="text-gray-700 font-semibold block mb-2 text-sm">Request Category <span className='text-red-500 ml-1'>*</span></span>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
@@ -693,7 +694,7 @@ const App = () => {
                     key={cat.key}
                     type="button"
                     onClick={() => handleCategoryChange(cat.key)} // Use new handler
-                    className={`flex items-center justify-center p-2 rounded-xl transition duration-150 border-2 text-center text-xs ${
+                    className={`flex items-center justify-center p-3 sm:p-4 rounded-xl transition duration-150 border-2 text-center text-sm ${ // Increased padding/size p-3 -> p-4 on small screens
                       form.category === cat.key
                         ? 'bg-orange-100 border-orange-500 text-orange-700 shadow-sm'
                         : 'bg-white border-gray-200 text-gray-600 hover:bg-orange-50 hover:border-orange-200'
@@ -784,18 +785,19 @@ const App = () => {
                 />
               </label>
 
-              {/* 12-Hour Time Input */}
+              {/* 12-Hour Time Input - REDUCED DIMENSIONS */}
               <div className="block">
                   <span className="text-gray-700 font-semibold flex items-center text-sm mb-1">
                       <Clock className='w-3 h-3 mr-1 text-gray-400'/> Preferred Time <span className='text-red-500 ml-1'>*</span>
                   </span>
-                  <div className="flex space-x-1 items-center">
+                  {/* Reduced space-x-1 to space-x-0.5, reduced padding */}
+                  <div className="flex space-x-0.5 items-center">
                       {/* Hour Input */}
                       <select
                           name="timeHour"
                           value={form.timeHour}
                           onChange={(e) => handleTimeChange('timeHour', e.target.value)}
-                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 text-sm text-orange-950"
+                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-1.5 text-sm text-orange-950" // Reduced p-2 to p-1.5
                       >
                           {hours.map(h => (
                               <option key={h} value={h}>{h}</option>
@@ -807,19 +809,19 @@ const App = () => {
                           name="timeMinute"
                           value={form.timeMinute}
                           onChange={(e) => handleTimeChange('timeMinute', e.target.value)}
-                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 text-sm text-orange-950"
+                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-1.5 text-sm text-orange-950" // Reduced p-2 to p-1.5
                       >
                           {minutes.map(m => (
                               <option key={m} value={m}>{m}</option>
                           ))}
                       </select>
                       
-                      {/* AM/PM Toggle */}
+                      {/* AM/PM Toggle - Reduced padding px-1.5 py-2 to px-1 py-1.5 */}
                       <div className="flex border border-gray-300 rounded-lg overflow-hidden shadow-sm">
                           <button
                               type="button"
                               onClick={() => setForm(prev => ({ ...prev, timePeriod: 'AM' }))}
-                              className={`px-1.5 py-2 font-semibold text-xs transition ${
+                              className={`px-1 py-1.5 font-semibold text-xs transition ${
                                   form.timePeriod === 'AM' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-orange-50'
                               }`}
                           >
@@ -828,7 +830,7 @@ const App = () => {
                           <button
                               type="button"
                               onClick={() => setForm(prev => ({ ...prev, timePeriod: 'PM' }))}
-                              className={`px-1.5 py-2 font-semibold text-xs transition ${
+                              className={`px-1 py-1.5 font-semibold text-xs transition ${
                                   form.timePeriod === 'PM' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-orange-50'
                               }`}
                           >
