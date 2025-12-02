@@ -199,7 +199,7 @@ const App = () => {
       trusteeReferenceId: auth.email,
       timestamp: Date.now(),
       status: 'Pending',
-      entryGate: 'C', // Mock
+      entryGate: 'C', // Mock gate for previous requirements
     };
     setRequests(prev => [...prev, newRequest]);
     showMessage('Request submitted successfully!', 'success');
@@ -307,7 +307,7 @@ const App = () => {
           
           <form onSubmit={handleSubmit} className="space-y-2.5">
             <div className="relative">
-              <label htmlFor="email" className="text-xs font-medium text-gray-700 block mb-0.5">Email</label>
+              <label htmlFor="email" className="text-xs font-medium text-gray-700 block mb-0.5">Email (Use {role === 'trustee' ? TRUSTEE_EMAIL : PRO_EMAIL})</label>
               <input
                 id="email"
                 type="email"
@@ -320,7 +320,7 @@ const App = () => {
             </div>
             
             <div className="relative">
-              <label htmlFor="password" className="text-xs font-medium text-gray-700 block mb-0.5">Password</label>
+              <label htmlFor="password" className="text-xs font-medium text-gray-700 block mb-0.5">Password (Use {displayPassword})</label>
               <input
                 id="password"
                 type="password"
@@ -497,6 +497,25 @@ const App = () => {
         });
     }, []);
 
+    // Time input validation and handling
+    const handleTimeInput = useCallback((name, value) => {
+        const sanitizedValue = value.replace(/[^0-9]/g, '');
+        let numValue = parseInt(sanitizedValue, 10) || 0;
+        
+        let finalValue = sanitizedValue;
+
+        if (name === 'timeHour') {
+            numValue = Math.min(Math.max(1, numValue), 12);
+            finalValue = String(numValue).padStart(2, '0');
+        } else if (name === 'timeMinute') {
+            numValue = Math.min(Math.max(0, numValue), 59);
+            finalValue = String(numValue).padStart(2, '0');
+        }
+        
+        setForm(prev => ({ ...prev, [name]: finalValue }));
+    }, []);
+
+
     const handleSubmit = (e) => {
         e.preventDefault();
         setIsSubmitted(true); // Flag submission attempt for visual feedback
@@ -534,6 +553,8 @@ const App = () => {
 
         // --- TIME CONSTRAINT VALIDATION ---
         let hour24 = parseInt(form.timeHour, 10);
+        
+        // Handle 12 AM (00:xx) and 12 PM (12:xx)
         if (form.timePeriod === 'PM' && hour24 !== 12) {
             hour24 += 12;
         } else if (form.timePeriod === 'AM' && hour24 === 12) {
@@ -555,17 +576,6 @@ const App = () => {
         onSubmit({ ...form, timeSlot });
     };
     
-    // Time helper function
-    const handleTimeChange = (name, value) => {
-        setForm(prev => ({ ...prev, [name]: value }));
-    }
-
-    // Generate an array for hour options (01 to 12)
-    const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-    // Generate an array for minute options (00 to 55 in steps of 5)
-    const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
-
-
     // Helper for required input styling
     const isRequiredInvalid = (name) => {
         if (!isSubmitted) return '';
@@ -619,10 +629,9 @@ const App = () => {
             </label>
 
             {/* Phone Number & Email (Side-by-Side) */}
-            {/* ADJUSTMENT: Custom grid columns for phone (smaller) and email (larger) */}
-            <div className='grid grid-cols-2 gap-3'>
-                {/* Phone Number - set to w-1/2 on medium+ screens */}
-                <label className="block md:col-span-1">
+            <div className='grid grid-cols-1 sm:grid-cols-12 gap-3'>
+                {/* Phone Number - Occupy 4/12 of the space on sm+ */}
+                <label className="block sm:col-span-4">
                     <span className="text-gray-700 font-semibold flex items-center text-sm">Phone Number <span className='text-red-500 ml-1'>*</span></span>
                     <input
                         type="tel"
@@ -636,8 +645,8 @@ const App = () => {
                     />
                 </label>
                 
-                {/* Optional Email - set to w-1/2 on medium+ screens */}
-                <label className="block md:col-span-1">
+                {/* Optional Email - Occupy 8/12 of the space on sm+ */}
+                <label className="block sm:col-span-8">
                     <span className="text-gray-700 font-semibold flex items-center text-sm">
                          Email
                     </span>
@@ -767,8 +776,8 @@ const App = () => {
 
             {/* Preferred Date & Time (Side-by-Side Container) */}
             <div className='grid grid-cols-2 gap-3'>
-              {/* Preferred Date */}
-              <label className="block">
+              {/* Preferred Date - IMPROVED UI GROUPING */}
+              <div className="block border border-gray-300 rounded-lg shadow-sm p-2">
                 <span className="text-gray-700 font-semibold flex items-center text-sm mb-1">
                     <Calendar className='w-3 h-3 mr-1 text-gray-400'/> Preferred Date <span className='text-red-500 ml-1'>*</span>
                 </span>
@@ -780,63 +789,57 @@ const App = () => {
                   // Set min and max attributes based on calculated strings
                   min={todayString} 
                   max={maxDateString}
-                  className={`block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 text-sm text-orange-950 ${isRequiredInvalid('date')}`}
+                  className={`block w-full rounded-lg border-gray-300 focus:border-orange-500 focus:ring-orange-500 p-1 text-sm text-orange-950 ${isRequiredInvalid('date')}`}
                   required
                 />
-              </label>
+              </div>
 
-              {/* 12-Hour Time Input - REDUCED DIMENSIONS */}
-              <div className="block">
+              {/* 12-Hour Time Input - IMPROVED UI GROUPING & KEYBOARD INPUT */}
+              <div className="block border border-gray-300 rounded-lg shadow-sm p-2">
                   <span className="text-gray-700 font-semibold flex items-center text-sm mb-1">
                       <Clock className='w-3 h-3 mr-1 text-gray-400'/> Preferred Time <span className='text-red-500 ml-1'>*</span>
                   </span>
-                  {/* Reduced space-x-1 to space-x-0.5, reduced padding */}
-                  <div className="flex space-x-0.5 items-center">
+                  {/* Reduced space-x-0.5 to space-x-1, increased spacing for cleaner look */}
+                  <div className="flex space-x-1 items-center">
                       {/* Hour Input */}
-                      <select
+                      <input
+                          type="number"
                           name="timeHour"
                           value={form.timeHour}
-                          onChange={(e) => handleTimeChange('timeHour', e.target.value)}
-                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-1.5 text-sm text-orange-950" // Reduced p-2 to p-1.5
-                      >
-                          {hours.map(h => (
-                              <option key={h} value={h}>{h}</option>
-                          ))}
-                      </select>
+                          onChange={(e) => handleTimeInput('timeHour', e.target.value)}
+                          onBlur={(e) => handleTimeInput('timeHour', e.target.value)} // Re-validate on blur
+                          placeholder="HH"
+                          maxLength="2"
+                          className="w-10 text-center rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-1 text-sm text-orange-950 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
                       <span className="text-base font-bold text-gray-700">:</span>
                       {/* Minute Input */}
-                      <select
+                      <input
+                          type="number"
                           name="timeMinute"
                           value={form.timeMinute}
-                          onChange={(e) => handleTimeChange('timeMinute', e.target.value)}
-                          className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-1.5 text-sm text-orange-950" // Reduced p-2 to p-1.5
-                      >
-                          {minutes.map(m => (
-                              <option key={m} value={m}>{m}</option>
-                          ))}
-                      </select>
+                          onChange={(e) => handleTimeInput('timeMinute', e.target.value)}
+                          onBlur={(e) => handleTimeInput('timeMinute', e.target.value)} // Re-validate on blur
+                          placeholder="MM"
+                          maxLength="2"
+                          className="w-10 text-center rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-1 text-sm text-orange-950 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
                       
-                      {/* AM/PM Toggle - Reduced padding px-1.5 py-2 to px-1 py-1.5 */}
-                      <div className="flex border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-                          <button
-                              type="button"
-                              onClick={() => setForm(prev => ({ ...prev, timePeriod: 'AM' }))}
-                              className={`px-1 py-1.5 font-semibold text-xs transition ${
-                                  form.timePeriod === 'AM' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-orange-50'
-                              }`}
-                          >
-                              AM
-                          </button>
-                          <button
-                              type="button"
-                              onClick={() => setForm(prev => ({ ...prev, timePeriod: 'PM' }))}
-                              className={`px-1 py-1.5 font-semibold text-xs transition ${
-                                  form.timePeriod === 'PM' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-orange-50'
-                              }`}
-                          >
-                              PM
-                          </button>
-                      </div>
+                      {/* AM/PM Toggle Button */}
+                      <button
+                          type="button"
+                          onClick={() => setForm(prev => ({ 
+                              ...prev, 
+                              timePeriod: prev.timePeriod === 'AM' ? 'PM' : 'AM' 
+                          }))}
+                          className={`flex-1 px-2 py-1 font-semibold text-xs rounded-lg shadow-sm transition ${
+                              form.timePeriod === 'AM' 
+                                ? 'bg-orange-600 text-white hover:bg-orange-700' 
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                      >
+                          {form.timePeriod}
+                      </button>
                   </div>
               </div>
             </div> {/* End Preferred Date & Time Container */}
@@ -1090,15 +1093,12 @@ const App = () => {
                         <p className="text-sm font-semibold text-orange-950">{selectedRequest.trusteeReferenceId}</p>
                     </div>
                 )}
+                {/* VASTRA DISPLAY SIMPLIFIED */}
                 {selectedRequest.vastraCount > 0 && (
                     <>
                         <div className='col-span-2 text-left mt-3 border-t border-gray-200 pt-3'>
-                            <p className="text-xs font-medium text-gray-500 uppercase">Vastra Count</p>
-                            <p className="text-sm sm:text-base font-semibold text-orange-950">{selectedRequest.vastraCount}</p>
-                        </div>
-                        <div className='col-span-2 text-left'>
-                            <p className="text-xs font-medium text-gray-500 uppercase">Vastra Recipients</p>
-                            <ul className="text-sm font-semibold text-orange-950 list-disc list-inside space-y-0.5 mt-1">
+                            <p className="text-xs font-medium text-gray-500 uppercase mb-1">Vastra ({selectedRequest.vastraCount})</p>
+                            <ul className="text-sm font-semibold text-orange-950 list-disc list-inside space-y-0.5 mt-0.5">
                                 {selectedRequest.vastraRecipients.map((name, index) => (
                                     <li key={index}>{name}</li>
                                 ))}
@@ -1221,7 +1221,7 @@ const App = () => {
     const isDone = scanResult?.status === 'Done';
 
     return (
-      // Increased overall horizontal padding p-2 -> p-3
+      // Increased overall horizontal padding p-3 -> p-4
       <div className="min-h-screen bg-orange-50 p-3 sm:p-4">
         <header className="flex justify-end items-center mb-3">
           <button onClick={handleLogout} className="p-1 text-red-500 hover:bg-red-50 rounded-full transition">
@@ -1319,11 +1319,10 @@ const App = () => {
                         <p className="text-sm font-semibold text-white">{scanResult.trusteeReferenceId}</p>
                     </div>
                 )}
+                {/* VASTRA DISPLAY SIMPLIFIED */}
                 {scanResult.vastraCount > 0 && (
                     <div className='col-span-2'>
-                        <p className="font-medium text-white uppercase opacity-80">Vastra Count</p>
-                        <p className="text-sm font-semibold text-white mb-0.5">{scanResult.vastraCount}</p>
-                        <p className="font-medium text-white uppercase opacity-80">Vastra Recipients</p>
+                        <p className="font-medium text-white uppercase opacity-80 mb-1">Vastra ({scanResult.vastraCount})</p>
                         <ul className="text-sm font-semibold text-white list-disc list-inside space-y-0.5 mt-0.5">
                             {scanResult.vastraRecipients.map((name, index) => (
                                 <li key={index}>{name}</li>
@@ -1335,10 +1334,7 @@ const App = () => {
                     <p className="font-medium text-white uppercase opacity-80">Date/Time</p>
                     <p className="text-sm font-semibold text-white">{scanResult.date} at {scanResult.timeSlot}</p>
                 </div>
-                <div>
-                    <p className="font-medium text-white uppercase opacity-80">Gate</p>
-                    <p className="text-sm font-semibold text-white">{scanResult.entryGate}</p>
-                </div>
+                {/* Removed Gate field as requested */}
               </div>
               
               {!isDone && (
